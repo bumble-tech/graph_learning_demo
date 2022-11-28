@@ -1,11 +1,13 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 import dgl
 import dgl.nn as dglnn
 import pandas as pd
+from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import tqdm
 
 
 def preprocess_features(nodes:pd.DataFrame):
@@ -58,6 +60,21 @@ def create_graph(edges:pd.DataFrame, nodes:pd.DataFrame):
 
     return g, reverse_eids
 
+def load_graph(filepath: Union[str, Path]) -> dgl.DGLGraph:
+    """A wrapper to load graphs.
+
+    Arguments:
+        filepath {Union[str, Path]} -- filepath of saved graph
+
+    Returns:
+        dgl.DGLGraph
+    """
+    from dgl.data.utils import load_graphs
+    glist, _ = load_graphs(str(filepath))
+    graph = glist[0]
+
+    return graph
+
 
 import torch.nn as nn
 import dgl.nn as dglnn
@@ -68,8 +85,11 @@ class Model(nn.Module):
         self.n_hidden = n_hidden
         self.conv1 = dglnn.SAGEConv(in_feats, self.n_hidden, 'mean')
         self.conv2 = dglnn.SAGEConv(self.n_hidden, self.n_hidden, 'mean')
+        self.conv3 = dglnn.SAGEConv(self.n_hidden, self.n_hidden, 'mean')
         self.predictor = nn.Sequential(
                 nn.Linear(n_hidden*2, n_hidden),
+                nn.ReLU(),
+                nn.Linear(n_hidden, n_hidden),
                 nn.ReLU(),
                 nn.Linear(n_hidden, 1),
                 # nn.Softmax(dim=1)
@@ -92,7 +112,6 @@ class Model(nn.Module):
 
 
     def inference(self, g, device, batch_size=1280):
-        feat = g.ndata["feat"].to(device)
         # Use all neighbours in the first layer in inference,
         # while sample from 3 layers during training
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(
@@ -106,18 +125,42 @@ class Model(nn.Module):
             batch_size=batch_size,
             shuffle=False,
             drop_last=False,
-            num_workers=-1,
+            num_workers=0,
         )
 
+        # first-layer
+        feat = g.ndata["feat"].to(device)
+        print(feat.shape)
         y = torch.zeros(
-            g.num_nodes(), self.n_hidden, device=device, pin_memory=True
+            g.num_nodes(), self.n_hidden, device='cpu', pin_memory=True
         )
         for input_nodes, output_nodes, blocks in tqdm.tqdm(dataloader):
             x = feat[input_nodes]
             h = self.conv1(blocks[0], x)
             h = nn.ReLU()(h)
-            h = self.conv2(blocks[1], h)
-            y[output_nodes] = h.to(device)
+            y[output_nodes] = h.to("cpu")
+        
+        # second-layer
+        feat = y.to(device)
+        print(feat.shape)
+        y = torch.zeros(
+            g.num_nodes(), self.n_hidden, device='cpu', pin_memory=True
+        )
+        for input_nodes, output_nodes, blocks in tqdm.tqdm(dataloader):
+            x = feat[input_nodes]
+            h = self.conv2(blocks[0], x)
+            y[output_nodes] = h.to("cpu")
+            
+        # third-layer
+        feat = y.to(device)
+        print(feat.shape)
+        y = torch.zeros(
+            g.num_nodes(), self.n_hidden, device='cpu', pin_memory=True
+        )
+        for input_nodes, output_nodes, blocks in tqdm.tqdm(dataloader):
+            x = feat[input_nodes]
+            h = self.conv3(blocks[0], x)
+            y[output_nodes] = h.to("cpu")
 
         return y
 
@@ -185,6 +228,13 @@ def _run_one_epoch(
     verbose = 100,
 ):
     for it, (input_nodes, pair_graph, neg_pair_graph, blocks) in enumerate(dataloader):
+        if n_optimizer_steps and (it + 1) == n_optimizer_steps:
+            print(f"Stop training this epoch after {n_optimizer_steps} steps.")
+            
+            # TODO: report ndcg, roc-auc
+            
+            break
+            
         x = blocks[0].srcdata["feat"]
         pos_score, neg_score = model(pair_graph, neg_pair_graph, blocks, x)
 
@@ -213,9 +263,7 @@ def _run_one_epoch(
             mem = torch.cuda.max_memory_allocated() / 1000000
             print(f"Loss {loss_value}, GPU Mem {mem}MB")
 
-        if n_optimizer_steps and (it + 1) == n_optimizer_steps:
-            print(f"Stop training this epoch after {n_optimizer_steps} steps.")
-            break
+        
 
     return model, optimizer, loss_value
 
