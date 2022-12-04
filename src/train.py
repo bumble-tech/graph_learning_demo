@@ -1,3 +1,17 @@
+# Copyright 2022 Bumble Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 import logging
 import pickle
 from typing import Tuple
@@ -24,7 +38,7 @@ def initialise_training(
     data_batch_size: int,
 ):
 
-    # Move data to GPU
+    # Move data to device
     graph = graph.to(device)
     reverse_eids = reverse_eids.to(device)
     seed_edges = torch.arange(graph.num_edges()).to(device)
@@ -90,9 +104,9 @@ def run_one_epoch(
         if n_optimizer_steps and (it + 1) == n_optimizer_steps:
             print(f"Stop training this epoch after {n_optimizer_steps} steps.")
             break
-
-        x = blocks[0].srcdata["feat"]
-        pos_score, neg_score = model(pair_graph, neg_pair_graph, blocks, x)
+        pos_score, neg_score = model(
+            pair_graph, neg_pair_graph, blocks, blocks[0].srcdata["feat"]
+        )
 
         # linear output
         pos_label = torch.ones_like(pos_score)
@@ -107,19 +121,23 @@ def run_one_epoch(
         loss_value = loss.item()
 
         if (it + 1) % verbose == 0:
-            mem = torch.cuda.max_memory_allocated() / 1000000
-            print(f"Loss {loss_value}, GPU Mem {mem}MB")
+            print(f"Loss {loss_value}")
 
     return model, optimizer, loss_value
 
 
 def train(
-    g, reverse_eids, nepoch: int = 10, verbose=2000, n_optimizer_steps: int = None
+    graph,
+    reverse_eids,
+    nepoch: int = 10,
+    verbose=2000,
+    n_optimizer_steps: int = None,
+    device="cuda",
 ):
     model, dataloader, optimizer = initialise_training(
-        g,
+        graph,
         reverse_eids,
-        "cuda",
+        device,
         n_hidden=128,
         learning_rate=1e-5,
         graph_sampling_size=[15, 10],
@@ -142,12 +160,12 @@ def train(
         train_losses.append(loss)
         logger.info(f"loss - {loss}")
 
-    save_graphs("data/graph.bin", [g])
+    save_graphs("data/graph.bin", [graph])
     with open("data/model.pkl", "wb") as stream:
         pickle.dump(model, stream)
 
     with torch.no_grad():
-        node_emb = model.inference(g, device="cuda").numpy()
+        node_emb = model.inference(graph, device="cuda").numpy()
 
     with open("data/embeddings.pkl", "wb") as f:
         pickle.dump(node_emb, f)

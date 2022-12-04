@@ -1,3 +1,17 @@
+# Copyright 2022 Bumble Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 import logging
 from pathlib import Path
 from typing import Union
@@ -103,8 +117,16 @@ def load_graph(filepath: Union[str, Path]) -> dgl.DGLGraph:
 
 
 def create_evaluation_dataset(test_edges, unique_users):
-    # a sequence includes 5 positive samples + 5 negative samples
+    """Generate evaluation adtaset
+    a sequence includes 5 positive samples + 5 negative samples
 
+    Arguments:
+        test_edges {pd.DataFrame} -- Test edges
+        unique_users {list} -- all unique users, used for negative sampling
+
+    Returns:
+        pd.DataFrame
+    """
     groupby = test_edges.groupby("numeric_id_1")
     unique_users = set(unique_users)
 
@@ -124,11 +146,18 @@ def create_evaluation_dataset(test_edges, unique_users):
     return sampled_users
 
 
-def train_test_split():
+def train_test_split(train_frac: float = 0.9):
+    """Split edgest into train/test.
+
+    Save all data to disk.
+
+    Keyword Arguments:
+        train_frac {float} -- proportion of train size (default: {0.9})
+    """
     features = pd.read_csv("data/large_twitch_features.csv")
     features = preprocess_features(features)
     edges = pd.read_csv("data/large_twitch_edges.csv")
-    train_index = edges.index.to_series().sample(frac=0.9)
+    train_index = edges.index.to_series().sample(frac=train_frac)
     test_mask = ~edges.index.isin(train_index)
     train_edges = edges.loc[train_index]
     test_edges = edges.loc[test_mask]

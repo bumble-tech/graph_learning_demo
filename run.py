@@ -1,3 +1,17 @@
+# Copyright 2022 Bumble Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
 import logging
 import pickle
 from pathlib import Path
@@ -38,7 +52,7 @@ def predict(model, node_emb, eval_dataset: pd.DataFrame):
     return predictions, labels
 
 
-def _predict_and_sort_for_all(g, target_user, targets, node_emb, model):
+def _predict_and_sort_for_all(graph, target_user, targets, node_emb, model):
     first_player_embeddings = np.vstack(
         [np.repeat(node_emb[target_user].reshape(1, -1), len(targets), axis=0)]
     )
@@ -54,31 +68,31 @@ def _predict_and_sort_for_all(g, target_user, targets, node_emb, model):
     return sorted_idx
 
 
-def return_most_likely(target_user: int, g, model, node_emb, n: int = 5):
-    targets = np.delete(g.nodes().numpy(), target_user)
-    sorted_idx = _predict_and_sort_for_all(g, target_user, targets, node_emb, model)
+def return_most_likely(target_user: int, graph, model, node_emb, n: int = 5):
+    targets = np.delete(graph.nodes().numpy(), target_user)
+    sorted_idx = _predict_and_sort_for_all(graph, target_user, targets, node_emb, model)
     raw_features = pd.read_csv("data/large_twitch_features.csv")
     print("target_user", raw_features.iloc[target_user])
     print(raw_features.iloc[targets[sorted_idx[-n:]]])
 
 
-def return_least_likely(target_user: int, g, model, node_emb, n: int = 5):
-    targets = np.delete(g.nodes().numpy(), target_user)
-    sorted_idx = _predict_and_sort_for_all(g, target_user, targets, node_emb, model)
+def return_least_likely(target_user: int, graph, model, node_emb, n: int = 5):
+    targets = np.delete(graph.nodes().numpy(), target_user)
+    sorted_idx = _predict_and_sort_for_all(graph, target_user, targets, node_emb, model)
     raw_features = pd.read_csv("data/large_twitch_features.csv")
     print("target_user", raw_features.iloc[target_user])
     print(raw_features.iloc[targets[sorted_idx[:n]]])
 
 
-def run():
+def run(example_user: int = 24516):
     # preprocess data
     train_test_split()
     train_edges = pd.read_csv("data/train_edges.csv")
     test_edges = pd.read_csv("data/test_edges.csv")
     features = pd.read_csv("data/processed_features.csv")
     # create graph
-    g, reverse_eids = create_graph(edges=train_edges, nodes=features)
-    train_loss_list = train(g, reverse_eids, n_optimizer_steps=None, nepoch=20)
+    graph, reverse_eids = create_graph(edges=train_edges, nodes=features)
+    train_loss_list = train(graph, reverse_eids, n_optimizer_steps=None, nepoch=20)
 
     # Evaluation
     eval_fp = Path("data/eval_dataset.pkl")
@@ -99,11 +113,11 @@ def run():
     logger.info(f"ndcg_score - {ndcg}")
 
     # Sanity check for one user:
-    print('Top 5 most likely to connect')
-    return_most_likely(24516, g, model, node_emb)
-    print('Top 5 least likely to connect')
-    return_least_likely(24516, g, model, node_emb)
-    
+    print("Top 5 most likely to connect")
+    return_most_likely(example_user, graph, model, node_emb)
+    print("Top 5 least likely to connect")
+    return_least_likely(example_user, graph, model, node_emb)
+
 
 if __name__ == "__main__":
     run()
