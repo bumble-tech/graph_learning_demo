@@ -88,7 +88,7 @@ def return_least_likely(target_user: int, graph, model, node_emb, n: int = 5):
 
 def run(example_user: int = 24516):
     # preprocess data
-        train_test_split()
+    train_test_split()
     train_edges = pd.read_csv("data/train_edges.csv")
     test_edges = pd.read_csv("data/test_edges.csv")
     features = pd.read_csv("data/processed_features.csv")
