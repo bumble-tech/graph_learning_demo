@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.metrics import ndcg_score
+from sklearn.metrics import ndcg_score, roc_auc_score
 
 from src.train import train
 from src.utils import create_evaluation_dataset, create_graph, train_test_split
@@ -69,6 +69,7 @@ def _predict_and_sort_for_all(graph, target_user, targets, node_emb, model):
 
 
 def return_most_likely(target_user: int, graph, model, node_emb, n: int = 5):
+    print("\nTop 5 most likely to connect")
     targets = np.delete(graph.nodes().numpy(), target_user)
     sorted_idx = _predict_and_sort_for_all(graph, target_user, targets, node_emb, model)
     raw_features = pd.read_csv("data/large_twitch_features.csv")
@@ -77,6 +78,7 @@ def return_most_likely(target_user: int, graph, model, node_emb, n: int = 5):
 
 
 def return_least_likely(target_user: int, graph, model, node_emb, n: int = 5):
+    print("\nTop 5 least likely to connect")
     targets = np.delete(graph.nodes().numpy(), target_user)
     sorted_idx = _predict_and_sort_for_all(graph, target_user, targets, node_emb, model)
     raw_features = pd.read_csv("data/large_twitch_features.csv")
@@ -86,7 +88,7 @@ def return_least_likely(target_user: int, graph, model, node_emb, n: int = 5):
 
 def run(example_user: int = 24516):
     # preprocess data
-    train_test_split()
+        train_test_split()
     train_edges = pd.read_csv("data/train_edges.csv")
     test_edges = pd.read_csv("data/test_edges.csv")
     features = pd.read_csv("data/processed_features.csv")
@@ -111,11 +113,11 @@ def run(example_user: int = 24516):
 
     ndcg = ndcg_score(labels, predictions)
     logger.info(f"ndcg_score - {ndcg}")
+    auc = roc_auc_score(labels, predictions, average="samples")
+    logger.info(f"roc_auc_score - {auc}")
 
     # Sanity check for one user:
-    print("\nTop 5 most likely to connect")
     return_most_likely(example_user, graph, model, node_emb)
-    print("\nTop 5 least likely to connect")
     return_least_likely(example_user, graph, model, node_emb)
 
 
