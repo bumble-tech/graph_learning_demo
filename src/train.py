@@ -140,7 +140,7 @@ def train(
         device,
         n_hidden=128,
         learning_rate=1e-5,
-        graph_sampling_size=[15, 10],
+        graph_sampling_size=[25, 10],
         negative_sample_size=5,
         weight_decay=1e-5,
         data_batch_size=512,

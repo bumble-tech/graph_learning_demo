@@ -72,16 +72,16 @@ def return_most_likely(target_user: int, graph, model, node_emb, n: int = 5):
     targets = np.delete(graph.nodes().numpy(), target_user)
     sorted_idx = _predict_and_sort_for_all(graph, target_user, targets, node_emb, model)
     raw_features = pd.read_csv("data/large_twitch_features.csv")
-    print("target_user", raw_features.iloc[target_user])
-    print(raw_features.iloc[targets[sorted_idx[-n:]]])
+    print("target_user \n", raw_features.iloc[target_user])
+    print(raw_features.iloc[targets[sorted_idx[-n:]]].T)
 
 
 def return_least_likely(target_user: int, graph, model, node_emb, n: int = 5):
     targets = np.delete(graph.nodes().numpy(), target_user)
     sorted_idx = _predict_and_sort_for_all(graph, target_user, targets, node_emb, model)
     raw_features = pd.read_csv("data/large_twitch_features.csv")
-    print("target_user", raw_features.iloc[target_user])
-    print(raw_features.iloc[targets[sorted_idx[:n]]])
+    print("target_user \n", raw_features.iloc[target_user])
+    print(raw_features.iloc[targets[sorted_idx[:n]]].T)
 
 
 def run(example_user: int = 24516):
@@ -92,7 +92,7 @@ def run(example_user: int = 24516):
     features = pd.read_csv("data/processed_features.csv")
     # create graph
     graph, reverse_eids = create_graph(edges=train_edges, nodes=features)
-    train_loss_list = train(graph, reverse_eids, n_optimizer_steps=None, nepoch=20)
+    train_loss_list = train(graph, reverse_eids, n_optimizer_steps=None, nepoch=10)
 
     # Evaluation
     eval_fp = Path("data/eval_dataset.pkl")
@@ -113,9 +113,9 @@ def run(example_user: int = 24516):
     logger.info(f"ndcg_score - {ndcg}")
 
     # Sanity check for one user:
-    print("Top 5 most likely to connect")
+    print("\nTop 5 most likely to connect")
     return_most_likely(example_user, graph, model, node_emb)
-    print("Top 5 least likely to connect")
+    print("\nTop 5 least likely to connect")
     return_least_likely(example_user, graph, model, node_emb)
 
 

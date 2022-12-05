@@ -48,6 +48,7 @@ class Model(nn.Module):
         return h_pos, h_neg
 
     def inference(self, graph, device, batch_size=1280):
+        graph = graph.to(device)
         sampler = dgl.dataloading.MultiLayerFullNeighborSampler(
             1, prefetch_node_feats=["feat"]
         )
