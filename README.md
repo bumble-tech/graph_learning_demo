@@ -1,5 +1,5 @@
 # Graph Learning Example
-This example is used as a demo in the lightening talk about graphs at Bumble X Data science festival taken place on Dec. 1st 2022.
+This example is used as a demo in the lightening talk about graphs at [Bumble X Data science festival Meetup](https://datasciencefestival.com/session/bumble-event-panel/) taken place on Dec. 1st 2022.
 
 The example uses [Twitch Gamer Social Network data](https://snap.stanford.edu/data/twitch_gamers.html). It contains Twitch users as nodes and their mutual following relationships as edges. 
 
