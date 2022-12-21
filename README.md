@@ -18,10 +18,10 @@ Model training code can be found in `src/train.py`
 ### You will need the following packages
 ```
 pip install scikit-learn numpy pandas torch tqdm pandarallel
-pip install dgl-cu113 dglgo -f https://data.dgl.ai/wheels/repo.html
 ```
-[NOTE]: install dgl that's compatible with your cuda version. [reference](https://www.dgl.ai/pages/start.html)
 
+*NOTE*
+You will also need to install dgl to construct the graph. Please follow the [official instructions](https://www.dgl.ai/pages/start.html) to install the version that's compatible to your machine.
 
 ### To run the code
 ```
